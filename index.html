@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Photobooth Online</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fff;--ink:#141414;--card:#fff0ee;--red:#e8110f;--sh:#141414}
+[data-theme=dark]{--bg:#0d0d0d;--ink:#fff;--card:#1c1c1c;--red:#ff3b30;--sh:#ff3b30}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;color:var(--ink);font:400 16px/1.5 'Bricolage Grotesque',system-ui,sans-serif;min-height:100vh;background:var(--bg) radial-gradient(color-mix(in srgb,var(--red) 22%,transparent) 2px,transparent 2.5px) 0 0/24px 24px}
+main{max-width:980px;margin:0 auto;padding:28px 16px 56px}
+h1,h2,h3{font-weight:800;letter-spacing:-.02em;margin:0 0 8px}
+h1{font-size:clamp(2.2rem,9vw,4.2rem);line-height:1.1;margin-bottom:14px}
+.logo{display:inline-block;background:var(--red);color:#fff;padding:0 .3em;border:3px solid var(--ink);box-shadow:6px 6px 0 var(--sh);transform:rotate(-2deg)}
+.sub{margin:0 0 26px;font-size:1.1rem}
+.screen{display:none}.screen.on{display:block}
+.ico{position:fixed;top:12px;width:44px;height:44px;border-radius:50%;border:3px solid var(--ink);background:var(--bg);color:var(--ink);font:800 20px/1 inherit;box-shadow:3px 3px 0 var(--sh);cursor:pointer;z-index:5}
+.ico:disabled{opacity:.4}
+.frames{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:20px}
+.fc{background:var(--card);border:3px solid var(--ink);border-radius:14px;padding:12px;cursor:pointer;text-align:center;font:inherit;color:inherit;box-shadow:5px 5px 0 var(--sh);transition:transform .15s}
+.fc:nth-child(odd){transform:rotate(-1.5deg)}.fc:nth-child(even){transform:rotate(1.5deg)}
+.fc:hover,.fc:focus-visible{transform:rotate(0) scale(1.04);outline:none}
+.fc canvas{width:100%;height:auto;max-height:280px;object-fit:contain;display:block;margin-bottom:8px}
+.fc b{display:block}
+.cam{position:relative;max-width:640px;margin:0 auto;aspect-ratio:4/3;background:#000;border-radius:18px;overflow:hidden;border:4px solid var(--ink);box-shadow:8px 8px 0 var(--sh)}
+.cam video,.cam img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#v{transform:scaleX(-1)}
+#cd{position:absolute;inset:0;display:grid;place-items:center;font:800 min(40vw,220px)/1 'Bricolage Grotesque',sans-serif;color:#fff;text-shadow:0 4px 0 var(--red),0 0 30px #000a;pointer-events:none}
+#fl{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+#rec{position:absolute;top:12px;left:12px;background:var(--red);color:#fff;padding:2px 12px;border-radius:99px;font-size:13px;font-weight:800;display:none}
+.bar{display:flex;gap:12px;justify-content:center;align-items:center;flex-wrap:wrap;margin:28px 0}
+.shutter{width:84px;height:84px;border-radius:50%;background:var(--red);border:4px solid var(--ink);box-shadow:0 0 0 6px var(--bg),0 0 0 9px var(--ink);cursor:pointer;transition:transform .1s}
+.shutter:active{transform:scale(.92)}.shutter:disabled{opacity:.35;cursor:default}
+.shutter:focus-visible{outline:4px solid var(--ink);outline-offset:12px}
+.b{font:inherit;font-weight:800;border:3px solid var(--ink);border-radius:12px;padding:12px 24px;cursor:pointer;background:var(--bg);color:var(--ink);text-decoration:none;display:inline-block;text-align:center;box-shadow:4px 4px 0 var(--sh)}
+.b.p{background:var(--red);color:#fff}
+.b:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--sh)}
+.b:disabled{opacity:.4;cursor:default}
+.b:focus-visible{outline:3px solid var(--red);outline-offset:3px}
+.dots{text-align:center;font-weight:800;margin:0 0 16px}
+.res{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:28px}
+.it{background:var(--card);border:3px solid var(--ink);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:4px 4px 0 var(--sh)}
+.it img,.it video{width:100%;height:260px;object-fit:contain;background:#0003;border-radius:8px}
+.it .b{padding:8px;font-size:14px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+<button class="ico" id="theme" style="right:12px"></button>
+<section id="s1" class="screen on">
+  <h1><span class="logo">Photobooth Online</span></h1>
+  <p class="sub">Pilih frame, pasang gaya terbaikmu, lalu cekrek!</p>
+  <div class="frames" id="frames"></div>
+</section>
+
+<section id="s2" class="screen">
+  <button class="ico" id="back" aria-label="Kembali pilih frame" style="left:12px">←</button>
+  <h2 id="ttl" style="text-align:center;margin-top:40px"></h2>
+  <p class="dots" id="dots"></p>
+  <div class="cam">
+    <video id="v" autoplay playsinline muted></video>
+    <img id="rv" hidden alt="Hasil foto">
+    <div id="cd"></div><div id="fl"></div><span id="rec">● REC</span>
+  </div>
+  <div class="bar">
+    <button class="shutter" id="go" aria-label="Ambil foto"></button>
+    <button class="b p" id="ok" hidden>Gunakan foto ini</button>
+    <button class="b" id="retake" hidden>Ambil ulang foto</button>
+  </div>
+</section>
+
+<section id="s3" class="screen">
+  <h2>Hasil fotomu</h2>
+  <p class="sub">Unduh satu per satu, atau ambil semuanya sekaligus.</p>
+  <div class="bar" style="justify-content:flex-start;margin-top:0">
+    <button class="b p" id="zip">Unduh semua (ZIP)</button>
+    <button class="b" id="again">Foto lagi</button>
+  </div>
+  <div id="res"></div>
+</section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+/* ============ DAFTAR FRAME ============
+   Frame bawaan dibuat lewat kode. Untuk menambah frame PNG sendiri:
+   1) taruh file di folder frames/ (PNG dengan bagian foto transparan)
+   2) tambahkan baris seperti contoh di bawah. w/h = ukuran PNG (px),
+      slots = posisi tiap foto {x,y,w,h} dalam px pada PNG tersebut.
+   Contoh: {name:'Punyaku', src:'frames/punyaku.png', w:600, h:1410, slots:slots(3)}
+*/
+const FRAMES=[
+  strip('Klasik',3,{bg:'#fffdf8',ink:'#141414',t:'PHOTOBOOTH'}),
+  strip('Pastel',4,{bg:'#ffd6e0',ink:'#7a2e4a',t:'SMILE!'}),
+  strip('Noir',3,{bg:'#17171c',ink:'#ff3b30',t:'NOIR'}),
+  // {name:'Punyaku', src:'frames/punyaku.png', w:600, h:1410, slots:slots(3)},
+];
+
+function slots(n){return Array.from({length:n},(_,i)=>({x:40,y:40+i*420,w:520,h:390}))}
+function strip(name,n,c){
+  const h=n*420+150;
+  return {name,w:600,h,slots:slots(n),
+    back(x){x.fillStyle=c.bg;x.fillRect(0,0,600,h)},
+    front(x){
+      x.fillStyle=c.ink;x.font='700 46px Georgia,serif';x.textAlign='center';x.fillText(c.t,300,h-55);
+      x.strokeStyle=c.ink;x.lineWidth=6;
+      this.slots.forEach(s=>x.strokeRect(s.x-3,s.y-3,s.w+6,s.h+6));
+    }};
+}
+function prep(f){
+  if(!f.src)return;
+  const im=new Image();
+  im.onload=()=>f.th&&draw(f.th.getContext('2d'),f,[]);
+  im.src=f.src;
+  f.back=()=>{};
+  f.front=x=>im.complete&&x.drawImage(im,0,0,f.w,f.h);
+}
+FRAMES.forEach(prep);
+
+/* ============ MENGGAMBAR ============ */
+function cover(x,src,s,mirror){
+  const w=src.videoWidth||src.width,h=src.videoHeight||src.height,r=s.w/s.h;
+  let cw=w,ch=h;
+  if(w/h>r)cw=h*r;else ch=w/r;
+  const sx=(w-cw)/2,sy=(h-ch)/2;
+  x.save();
+  if(mirror){x.translate(s.x+s.w,s.y);x.scale(-1,1);x.drawImage(src,sx,sy,cw,ch,0,0,s.w,s.h)}
+  else x.drawImage(src,sx,sy,cw,ch,s.x,s.y,s.w,s.h);
+  x.restore();
+}
+function draw(x,f,items){
+  f.back(x);
+  f.slots.forEach((s,i)=>{
+    const it=items[i];
+    if(it)cover(x,it.src,s,it.m);
+    else{x.fillStyle='#d9d9d9';x.fillRect(s.x,s.y,s.w,s.h)}
+  });
+  f.front(x);
+}
+
+/* ============ APLIKASI ============ */
+const $=id=>document.getElementById(id);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const MIME=['video/webm;codecs=vp9','video/webm','video/mp4'].find(m=>window.MediaRecorder&&MediaRecorder.isTypeSupported(m))||'';
+const EXT=MIME.includes('mp4')?'mp4':'webm',BT=(MIME||'video/webm').split(';')[0];
+const MROPT=MIME?{mimeType:MIME,videoBitsPerSecond:3e6}:{};
+let F,shots=[],stream,cur,files=[];
+
+/* Mode terang / gelap */
+const root=document.documentElement;
+function theme(t){root.dataset.theme=t;$('theme').textContent=t==='dark'?'☀':'☾';$('theme').setAttribute('aria-label',t==='dark'?'Pindah ke mode terang':'Pindah ke mode gelap')}
+let t0;try{t0=localStorage.getItem('pb-theme')}catch(e){}
+theme(t0||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'));
+$('theme').onclick=()=>{const t=root.dataset.theme==='dark'?'light':'dark';theme(t);try{localStorage.setItem('pb-theme',t)}catch(e){}};
+
+function show(id){document.querySelectorAll('.screen').forEach(e=>e.classList.toggle('on',e.id===id))}
+function mode(m){
+  $('go').hidden=m==='review';$('go').disabled=m==='busy';
+  $('ok').hidden=$('retake').hidden=m!=='review';
+  $('rv').hidden=m!=='review';$('back').disabled=m==='busy';
+}
+function ui(){
+  $('ttl').textContent='Frame '+F.name;
+  $('dots').textContent=`Foto ${shots.length+1} dari ${F.slots.length}`;
+  mode('idle');
+}
+
+function addCard(f){
+  const b=document.createElement('button');b.className='fc';
+  f.th=document.createElement('canvas');f.th.width=f.w;f.th.height=f.h;
+  draw(f.th.getContext('2d'),f,[]);
+  b.append(f.th);
+  b.insertAdjacentHTML('beforeend',`<b>${f.name}</b>${f.slots.length} foto`);
+  b.onclick=()=>pick(f);
+  $('frames').append(b);
+}
+FRAMES.forEach(addCard);
+
+async function pick(f){
+  F=f;shots=[];
+  try{
+    stream=stream||await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280},height:{ideal:960}},audio:false});
+  }catch(e){
+    alert('Kamera tidak bisa dipakai. Izinkan akses kamera di browser, dan buka website lewat https.');
+    return;
+  }
+  $('v').srcObject=stream;
+  show('s2');ui();
+}
+function stopCam(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
+
+// Rekam klip polos (tanpa frame) selama hitung mundur
+function record(){
+  const c=document.createElement('canvas');c.width=520;c.height=390;
+  const x=c.getContext('2d'),v=$('v'),s={x:0,y:0,w:520,h:390};
+  let on=true;
+  (function loop(){if(!on)return;cover(x,v,s,true);requestAnimationFrame(loop)})();
+  const ch=[],mr=new MediaRecorder(c.captureStream(30),MROPT);
+  mr.ondataavailable=e=>e.data.size&&ch.push(e.data);
+  mr.start();
+  return()=>new Promise(r=>{mr.onstop=()=>{on=false;r(new Blob(ch,{type:BT}))};mr.stop()});
+}
+
+$('go').onclick=async()=>{
+  mode('busy');
+  const stop=record();
+  $('rec').style.display='block';
+  for(let n=5;n>0;n--){$('cd').textContent=n;await sleep(1000)}
+  $('cd').textContent='';
+  const v=$('v'),cv=document.createElement('canvas');
+  cv.width=v.videoWidth;cv.height=v.videoHeight;
+  const x=cv.getContext('2d');x.translate(cv.width,0);x.scale(-1,1);x.drawImage(v,0,0);
+  $('fl').animate([{opacity:.9},{opacity:0}],300);
+  const vid=await stop();
+  $('rec').style.display='none';
+  const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.92));
+  cur={cv,blob,vid};
+  $('rv').src=URL.createObjectURL(blob);
+  mode('review');
+};
+$('retake').onclick=()=>{URL.revokeObjectURL($('rv').src);mode('idle')};
+$('ok').onclick=()=>{
+  URL.revokeObjectURL($('rv').src);
+  shots.push(cur);
+  if(shots.length<F.slots.length)ui();else finish();
+};
+$('back').onclick=()=>{stopCam();show('s1')};
+$('again').onclick=()=>show('s1');
+
+// Gabungkan semua klip: diputar bersamaan di dalam satu frame
+async function combine(){
+  const c=document.createElement('canvas');c.width=F.w;c.height=F.h;
+  const x=c.getContext('2d');
+  const vs=shots.map(s=>{const v=document.createElement('video');v.muted=true;v.playsInline=true;v.src=URL.createObjectURL(s.vid);return v});
+  await Promise.all(vs.map(v=>new Promise(r=>{v.onloadeddata=r;v.load()})));
+  const items=vs.map(v=>({src:v}));
+  let on=true;
+  (function loop(){if(!on)return;draw(x,F,items);requestAnimationFrame(loop)})();
+  const ch=[],mr=new MediaRecorder(c.captureStream(30),MROPT);
+  mr.ondataavailable=e=>e.data.size&&ch.push(e.data);
+  const done=Promise.all(vs.map(v=>new Promise(r=>v.onended=r)));
+  mr.start();
+  await Promise.all(vs.map(v=>v.play()));
+  await Promise.race([done,sleep(15000)]);
+  await sleep(300);
+  return new Promise(r=>{mr.onstop=()=>{on=false;r(new Blob(ch,{type:BT}))};mr.stop()});
+}
+
+const G=[['a','Foto dalam frame'],['b','Foto tanpa frame'],['c','Video dalam satu frame']];
+function render(){
+  $('res').innerHTML='';
+  G.forEach(([g,title])=>{
+    const sec=document.createElement('div'),row=document.createElement('div');
+    sec.innerHTML=`<h3>${title}</h3>`;row.className='res';
+    const fs=files.filter(f=>f.g===g);
+    if(!fs.length)row.innerHTML='<div class="it"><p>Menyiapkan video, tunggu sekitar 6 detik...</p></div>';
+    fs.forEach(f=>{
+      const u=URL.createObjectURL(f.b),d=document.createElement('div');d.className='it';
+      d.innerHTML=(f.b.type.startsWith('image')?`<img src="${u}" alt="${f.t}">`:`<video src="${u}" controls autoplay muted loop playsinline></video>`)+
+        `<a class="b" href="${u}" download="${f.n}">Unduh ${f.t.toLowerCase()}</a>`;
+      row.append(d);
+    });
+    sec.append(row);$('res').append(sec);
+  });
+}
+
+async function finish(){
+  stopCam();
+  const c=document.createElement('canvas');c.width=F.w;c.height=F.h;
+  draw(c.getContext('2d'),F,shots.map(s=>({src:s.cv})));
+  const fb=await new Promise(r=>c.toBlob(r,'image/png'));
+  files=[{n:'foto-berframe.png',b:fb,t:'Foto dalam frame',g:'a'}];
+  shots.forEach((s,i)=>files.push({n:`foto-polos-${i+1}.jpg`,b:s.blob,t:`Foto ${i+1}`,g:'b'}));
+  $('zip').disabled=true;render();show('s3');
+  const vb=await combine();
+  files.push({n:`video-berframe.${EXT}`,b:vb,t:'Video',g:'c'});
+  render();$('zip').disabled=false;
+}
+
+$('zip').onclick=async()=>{
+  const btn=$('zip');btn.disabled=true;btn.textContent='Menyiapkan ZIP...';
+  const z=new JSZip();files.forEach(f=>z.file(f.n,f.b));
+  const blob=await z.generateAsync({type:'blob'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='photobooth.zip';a.click();
+  btn.disabled=false;btn.textContent='Unduh semua (ZIP)';
+};
+
+/* ============ FRAME KUSTOM (dari halaman admin) ============
+   Dibaca dari frames/frames.json. Bila file tidak ada / gagal dimuat,
+   aplikasi tetap berjalan dengan frame bawaan di atas. */
+fetch('frames/frames.json',{cache:'no-cache'})
+  .then(r=>r.ok?r.json():[])
+  .then(list=>{
+    if(!Array.isArray(list))return;
+    list.forEach(f=>{
+      if(!f||!f.src||!f.name||!f.w||!f.h||!Array.isArray(f.slots)||!f.slots.length)return;
+      prep(f);FRAMES.push(f);addCard(f);
+    });
+  })
+  .catch(()=>{});
+</script>
+</body>
+</html>
