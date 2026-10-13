@@ -1,31 +1,5 @@
 [
   {
-    "name": "Joane Mieko 2",
-    "src": "frames/joane-mieko-2.png",
-    "w": 426,
-    "h": 1280,
-    "slots": [
-      {
-        "x": 21,
-        "y": 226,
-        "w": 379,
-        "h": 303
-      },
-      {
-        "x": 25,
-        "y": 542,
-        "w": 379,
-        "h": 305
-      },
-      {
-        "x": 27,
-        "y": 858,
-        "w": 377,
-        "h": 303
-      }
-    ]
-  },
-  {
     "name": "Coastal Memories",
     "src": "frames/coastal-memories.png",
     "w": 940,
