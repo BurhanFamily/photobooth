@@ -97,5 +97,25 @@
       }
     ],
     "effect": "bw"
+  },
+  {
+    "name": "Smiles Come To You",
+    "src": "frames/smiles-come-to-you.png",
+    "w": 940,
+    "h": 2821,
+    "slots": [
+      {
+        "x": 83,
+        "y": 84,
+        "w": 773,
+        "h": 959
+      },
+      {
+        "x": 81,
+        "y": 1073,
+        "w": 776,
+        "h": 961
+      }
+    ]
   }
 ]
