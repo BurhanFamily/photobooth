@@ -105,6 +105,11 @@ ol{padding-left:20px;margin:8px 0}
       <input type="file" id="png" accept="image/png">
       <p class="hint" id="info">Belum ada PNG.</p>
 
+      <label for="effect">Efek warna hasil foto</label>
+      <select id="effect"></select>
+      <canvas id="fxPrev" width="360" height="56" style="width:100%;max-width:360px;height:auto;border:3px solid var(--ink);border-radius:10px;display:block;margin-top:8px" aria-label="Contoh efek warna"></canvas>
+      <p class="hint">Efek hanya mengubah foto dan video yang ada di dalam frame. Foto polos tanpa frame tetap berwarna.</p>
+
       <h3 style="margin-top:16px">Layout</h3>
       <div class="btns" id="presets">
         <button class="b s" data-c="1" data-r="2">1×2</button>
@@ -170,8 +175,63 @@ let t0;try{t0=localStorage.getItem('pb-theme')}catch(e){}
 root.dataset.theme=t0||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
 
 let list=[],dirty=false,busy=false,ed=blank();
-function blank(){return{idx:-1,img:null,blob:null,fresh:false,src:'',w:0,h:0,slots:[],sel:-1}}
+function blank(){return{idx:-1,img:null,blob:null,fresh:false,src:'',w:0,h:0,slots:[],sel:-1,effect:'none'}}
 const cv=$('cv');
+
+/*FX-START*/
+const EFFECTS={
+  none:{name:'Normal (tanpa efek)',ops:[]},
+  bw:{name:'Hitam putih',ops:[['grayscale',1]]},
+  bwc:{name:'Hitam putih kontras',ops:[['grayscale',1],['contrast',1.3]]},
+  sepia:{name:'Sepia',ops:[['sepia',1]]},
+  vintage:{name:'Vintage',ops:[['sepia',.35],['contrast',1.1],['saturate',1.25]]},
+  warm:{name:'Hangat',ops:[['sepia',.2],['saturate',1.2],['brightness',1.05]]},
+  fade:{name:'Pudar',ops:[['contrast',.85],['brightness',1.1],['saturate',.8]]},
+  vivid:{name:'Cerah',ops:[['saturate',1.4],['contrast',1.1]]}
+};
+const cssOf=e=>e.ops.map(([n,v])=>n+'('+v+')').join(' ');
+// Safari belum mendukung ctx.filter, jadi dicek dulu; jika tidak ada dipakai hitungan piksel
+const FILTER_OK=(()=>{
+  try{
+    const c=document.createElement('canvas');c.width=c.height=1;
+    const x=c.getContext('2d');x.filter='grayscale(1)';x.fillStyle='#f00';x.fillRect(0,0,1,1);
+    const d=x.getImageData(0,0,1,1).data;return d[0]===d[1]&&d[1]===d[2];
+  }catch(e){return false}
+})();
+function effMatrix(ops){
+  let M=[1,0,0,0,1,0,0,0,1],o=[0,0,0];
+  const mul=(A,b)=>{
+    const N=[],p=[];
+    for(let r=0;r<3;r++){
+      for(let c=0;c<3;c++)N[r*3+c]=A[r*3]*M[c]+A[r*3+1]*M[3+c]+A[r*3+2]*M[6+c];
+      p[r]=A[r*3]*o[0]+A[r*3+1]*o[1]+A[r*3+2]*o[2]+b[r];
+    }
+    M=N;o=p;
+  };
+  ops.forEach(([n,v])=>{
+    if(n==='grayscale'){const a=1-v;mul([.2126+.7874*a,.7152-.7152*a,.0722-.0722*a,.2126-.2126*a,.7152+.2848*a,.0722-.0722*a,.2126-.2126*a,.7152-.7152*a,.0722+.9278*a],[0,0,0])}
+    else if(n==='sepia'){const a=1-v;mul([.393+.607*a,.769-.769*a,.189-.189*a,.349-.349*a,.686+.314*a,.168-.168*a,.272-.272*a,.534-.534*a,.131+.869*a],[0,0,0])}
+    else if(n==='saturate'){mul([.213+.787*v,.715-.715*v,.072-.072*v,.213-.213*v,.715+.285*v,.072-.072*v,.213-.213*v,.715-.715*v,.072+.928*v],[0,0,0])}
+    else if(n==='contrast'){const k=127.5*(1-v);mul([v,0,0,0,v,0,0,0,v],[k,k,k])}
+    else if(n==='brightness'){mul([v,0,0,0,v,0,0,0,v],[0,0,0])}
+  });
+  return{M,o};
+}
+function pxEffect(x,s,e){
+  const X=Math.max(0,Math.round(s.x)),Y=Math.max(0,Math.round(s.y));
+  const W=Math.min(x.canvas.width-X,Math.round(s.w)),H=Math.min(x.canvas.height-Y,Math.round(s.h));
+  if(W<=0||H<=0)return;
+  const id=x.getImageData(X,Y,W,H),d=id.data,m=e.mx||(e.mx=effMatrix(e.ops)),M=m.M,o=m.o;
+  for(let i=0;i<d.length;i+=4){
+    const r=d[i],g=d[i+1],b=d[i+2];
+    d[i]=M[0]*r+M[1]*g+M[2]*b+o[0];
+    d[i+1]=M[3]*r+M[4]*g+M[5]*b+o[1];
+    d[i+2]=M[6]*r+M[7]*g+M[8]*b+o[2];
+  }
+  x.putImageData(id,X,Y);
+}
+const effOf=f=>{const e=f&&f.effect&&EFFECTS[f.effect];return e&&e.ops.length?e:null};
+/*FX-END*/
 
 /* ---------- Daftar frame ---------- */
 async function loadListPublic(){
@@ -195,7 +255,7 @@ function renderList(){
     d.innerHTML='<img alt=""><div><b></b><br><small></small></div><div class="acts"></div>';
     d.querySelector('img').src=f.url||f.src;
     d.querySelector('b').textContent=f.name;
-    d.querySelector('small').textContent=`${f.w}×${f.h}px · ${f.slots.length} foto`+(f.blob?' · BARU (belum diunggah)':'');
+    d.querySelector('small').textContent=`${f.w}×${f.h}px · ${f.slots.length} foto`+(effOf(f)?' · efek '+EFFECTS[f.effect].name:'')+(f.blob?' · BARU (belum diunggah)':'');
     const a=d.querySelector('.acts');
     const e=document.createElement('button');e.className='b s';e.textContent='Edit';e.onclick=()=>{if(!busy)edit(i)};
     const x=document.createElement('button');x.className='b s';x.textContent='Hapus';
@@ -213,7 +273,7 @@ function renderList(){
 
 /* ---------- Editor ---------- */
 function reset(){
-  ed=blank();$('name').value='';$('png').value='';$('edTitle').textContent='Frame baru';
+  ed=blank();$('name').value='';$('png').value='';$('edTitle').textContent='Frame baru';$('effect').value='none';fxPrev();
   $('cols').value=1;$('rows').value=3;$('gx').value=30;$('gy').value=30;
   $('mt').value=40;$('mr').value=40;$('mb').value=150;$('ml').value=40;
   refresh();
@@ -223,6 +283,7 @@ function edit(i){
   ed=blank();ed.idx=i;ed.src=f.src;ed.w=f.w;ed.h=f.h;ed.blob=f.blob||null;ed.orig=f.src;
   ed.slots=f.slots.map(s=>({x:s.x,y:s.y,w:s.w,h:s.h}));
   $('name').value=f.name;$('png').value='';$('edTitle').textContent='Edit frame: '+f.name;
+  ed.effect=EFFECTS[f.effect]?f.effect:'none';$('effect').value=ed.effect;fxPrev();
   const im=new Image();
   im.onload=()=>{ed.img=im;ed.w=im.naturalWidth;ed.h=im.naturalHeight;refresh();$('edTitle').scrollIntoView({behavior:'smooth'})};
   im.onerror=()=>alert('Gambar frame tidak bisa dimuat. Jika halaman dibuka dari file di komputer, buka lewat website (https).');
@@ -376,6 +437,7 @@ $('save').onclick=()=>{
   let src=ed.src,blob=ed.blob;
   if(ed.fresh||!src)src=uniqueFile(slug(name),ed.idx);
   const entry={name,src,w:ed.w,h:ed.h,slots:ed.slots.map(s=>({x:s.x,y:s.y,w:s.w,h:s.h}))};
+  if(ed.effect&&ed.effect!=='none')entry.effect=ed.effect;
   if(blob)entry.blob=blob;
   if(ed.idx>=0){const old=list[ed.idx];if(old.blob&&blob===old.blob)entry.url=old.url;list[ed.idx]=entry}else list.push(entry);
   dirty=true;reset();renderList();
@@ -383,7 +445,7 @@ $('save').onclick=()=>{
 $('cancel').onclick=reset;
 
 /* ---------- Ekspor ---------- */
-function jsonOut(){return JSON.stringify(list.map(({name,src,w,h,slots})=>({name,src,w,h,slots})),null,2)}
+function jsonOut(){return JSON.stringify(list.map(({name,src,w,h,slots,effect})=>effect&&effect!=='none'?{name,src,w,h,slots,effect}:{name,src,w,h,slots}),null,2)}
 $('zip').onclick=async()=>{
   const b=$('zip');b.disabled=true;b.textContent='Menyiapkan...';
   try{
@@ -401,6 +463,20 @@ $('copy').onclick=async()=>{
   catch(e){$('zipNote').textContent='Gagal menyalin. Gunakan tombol ZIP.'}
 };
 addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
+
+/* ---------- Efek warna ---------- */
+Object.keys(EFFECTS).forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=EFFECTS[k].name;$('effect').append(o)});
+function fxPrev(){
+  const c=$('fxPrev'),x=c.getContext('2d'),w=c.width,h=c.height,e=effOf({effect:ed.effect});
+  x.clearRect(0,0,w,h);x.filter='none';
+  const cols=['#e53935','#fb8c00','#fdd835','#43a047','#1e88e5','#8e24aa','#f1c9a5','#6d4c41'],bw=w/cols.length;
+  if(e&&FILTER_OK)x.filter=cssOf(e);
+  cols.forEach((col,i)=>{x.fillStyle=col;x.fillRect(Math.round(i*bw),0,Math.ceil(bw),h)});
+  x.filter='none';
+  if(e&&!FILTER_OK)pxEffect(x,{x:0,y:0,w,h},e);
+}
+$('effect').onchange=()=>{ed.effect=$('effect').value;fxPrev()};
+fxPrev();
 
 /* ---------- GitHub (simpan otomatis ke repo) ---------- */
 /*GH-START*/
@@ -480,7 +556,7 @@ function setBusy(b){busy=b;$('save').disabled=b;$('cancel').disabled=b;$('connSa
 async function saveRemote(name){
   if(busy)return;
   const orig=ed.idx>=0&&list[ed.idx]?list[ed.idx].src:null;
-  const snap={w:ed.w,h:ed.h,blob:ed.blob,fresh:ed.fresh,src:ed.src,slots:ed.slots.map(s=>({x:s.x,y:s.y,w:s.w,h:s.h}))};
+  const snap={w:ed.w,h:ed.h,blob:ed.blob,fresh:ed.fresh,src:ed.src,effect:ed.effect,slots:ed.slots.map(s=>({x:s.x,y:s.y,w:s.w,h:s.h}))};
   let made=null;
   setBusy(true);
   try{
@@ -497,6 +573,7 @@ async function saveRemote(name){
       }
       made=src;
       const entry={name,src,w:snap.w,h:snap.h,slots:snap.slots};
+      if(snap.effect&&snap.effect!=='none')entry.effect=snap.effect;
       const nx=remote.slice();
       if(i>=0)nx[i]=entry;else nx.push(entry);
       return{next:nx,png};
