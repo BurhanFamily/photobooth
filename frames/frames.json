@@ -161,37 +161,5 @@
         "h": 404
       }
     ]
-  },
-  {
-    "name": "Spesial - Unfolded Memoria by Theaferia",
-    "src": "frames/spesial-unfolded-memoria-by-theaferia.png",
-    "w": 640,
-    "h": 1920,
-    "slots": [
-      {
-        "x": 44,
-        "y": 58,
-        "w": 554,
-        "h": 399
-      },
-      {
-        "x": 41,
-        "y": 479,
-        "w": 554,
-        "h": 401
-      },
-      {
-        "x": 41,
-        "y": 903,
-        "w": 554,
-        "h": 403
-      },
-      {
-        "x": 39,
-        "y": 1319,
-        "w": 562,
-        "h": 413
-      }
-    ]
   }
 ]
