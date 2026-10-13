@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Photobooth - Burhan Family</title>
+<title>Photobooth Online</title>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#fff;--ink:#141414;--card:#fff0ee;--red:#e8110f;--sh:#141414}
@@ -53,6 +53,12 @@ h1{font-size:clamp(2.2rem,9vw,4.2rem);line-height:1.1;margin-bottom:14px}
 .about h2{font-size:1.4rem}
 .about p{margin:0 0 10px}.about p:last-child{margin-bottom:0}
 .credit{text-align:center;font-weight:800;margin:28px 0 0}
+.pin{border:3px dashed var(--red);border-radius:16px;padding:14px;margin:0 0 28px;background:color-mix(in srgb,var(--red) 8%,transparent)}
+.pin h2{font-size:1.1rem;margin:0 0 14px;color:var(--red)}
+.pinrow{display:flex;justify-content:center}
+.pinrow .fc{width:100%;max-width:240px;position:relative}
+.rib{position:absolute;top:-12px;left:-8px;background:var(--red);color:#fff;font-size:12px;font-weight:800;padding:1px 10px;border-radius:99px;border:2px solid var(--ink)}
+.allh{font-size:1.1rem;margin:0 0 14px}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -62,12 +68,18 @@ h1{font-size:clamp(2.2rem,9vw,4.2rem);line-height:1.1;margin-bottom:14px}
 <section id="s1" class="screen on">
   <h1><span class="logo">Photobooth Online</span></h1>
   <p class="sub">Pilih frame, pasang gaya terbaikmu, lalu cekrek!</p>
+  <section class="pin" id="pin" hidden>
+    <h2>📌 Frame spesial</h2>
+    <div class="pinrow" id="pinned"></div>
+  </section>
+  <h2 class="allh" id="allh" hidden>Semua frame</h2>
   <div class="frames" id="frames"></div>
   <section class="about">
     <h2>Tentang Photobooth Online</h2>
     <p>Photobooth berbasis web buatan <b>Burhan Family</b>. Pilih frame, atur gaya terbaikmu, lalu cekrek. Tanpa install aplikasi dan tanpa akun.</p>
-    </section>
-  <p class="credit">Projek by : Burhan Family</p>
+    <p>Hasilnya bisa diunduh sebagai foto berframe, foto polos, dan video dalam satu frame, satu per satu atau semuanya sekaligus dalam bentuk ZIP. Fotomu diproses di browser dan tidak diunggah ke server.</p>
+  </section>
+  <p class="credit">Dibuat dengan ❤️ oleh Burhan Family</p>
 </section>
 
 <section id="s2" class="screen">
@@ -128,7 +140,7 @@ function strip(name,n,c){
 function prep(f){
   if(!f.src)return;
   const im=new Image();
-  im.onload=()=>f.th&&draw(f.th.getContext('2d'),f,[]);
+  im.onload=()=>{f.th&&draw(f.th.getContext('2d'),f,[]);f.th2&&draw(f.th2.getContext('2d'),f,[])};
   im.src=f.src;
   f.back=()=>{};
   f.front=x=>im.complete&&x.drawImage(im,0,0,f.w,f.h);
@@ -395,14 +407,27 @@ $('zip').onclick=async()=>{
 /* ============ FRAME KUSTOM (dari halaman admin) ============
    Dibaca dari frames/frames.json. Bila file tidak ada / gagal dimuat,
    aplikasi tetap berjalan dengan frame bawaan di atas. */
+// Frame spesial: satu frame yang disematkan di bagian atas (diatur dari admin)
+function showPin(f){
+  const b=document.createElement('button');b.className='fc';
+  f.th2=document.createElement('canvas');f.th2.width=f.w;f.th2.height=f.h;
+  draw(f.th2.getContext('2d'),f,[]);
+  b.append(f.th2);
+  b.insertAdjacentHTML('beforeend',`<span class="rib">Spesial</span><b>${f.name}</b>${f.slots.length} foto${effOf(f)?' · '+EFFECTS[f.effect].name:''}`);
+  b.onclick=()=>pick(f);
+  $('pinned').append(b);$('pin').hidden=false;$('allh').hidden=false;
+}
 fetch('frames/frames.json',{cache:'no-cache'})
   .then(r=>r.ok?r.json():[])
   .then(list=>{
     if(!Array.isArray(list))return;
+    let pinned=null;
     list.forEach(f=>{
       if(!f||!f.src||!f.name||!f.w||!f.h||!Array.isArray(f.slots)||!f.slots.length)return;
       prep(f);FRAMES.push(f);addCard(f);
+      if(f.pinned===true&&!pinned)pinned=f;
     });
+    if(pinned)showPin(pinned);
   })
   .catch(()=>{});
 </script>

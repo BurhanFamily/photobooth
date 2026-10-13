@@ -85,6 +85,7 @@ ol{padding-left:20px;margin:8px 0}
 
 <section class="card">
   <h2>Frame kustom saat ini</h2>
+  <p class="hint">Ketuk <b>Sematkan</b> untuk menaruh satu frame di bagian atas photobooth sebagai frame spesial. Menyematkan frame lain menggantikan yang lama, dan ketuk lagi untuk melepas.</p>
   <div id="list"></div>
   <p class="hint" id="listNote"></p>
 </section>
@@ -255,7 +256,7 @@ function renderList(){
     d.innerHTML='<img alt=""><div><b></b><br><small></small></div><div class="acts"></div>';
     d.querySelector('img').src=f.url||f.src;
     d.querySelector('b').textContent=f.name;
-    d.querySelector('small').textContent=`${f.w}×${f.h}px · ${f.slots.length} foto`+(effOf(f)?' · efek '+EFFECTS[f.effect].name:'')+(f.blob?' · BARU (belum diunggah)':'');
+    d.querySelector('small').textContent=`${f.w}×${f.h}px · ${f.slots.length} foto`+(effOf(f)?' · efek '+EFFECTS[f.effect].name:'')+(f.pinned?' · DISEMATKAN':'')+(f.blob?' · BARU (belum diunggah)':'');
     const a=d.querySelector('.acts');
     const e=document.createElement('button');e.className='b s';e.textContent='Edit';e.onclick=()=>{if(!busy)edit(i)};
     const x=document.createElement('button');x.className='b s';x.textContent='Hapus';
@@ -265,7 +266,9 @@ function renderList(){
       if(connected())removeRemote(i);
       else{list.splice(i,1);dirty=true;if(ed.idx===i)reset();renderList()}
     };
-    a.append(e,x);box.append(d);
+    const p=document.createElement('button');p.className='b s'+(f.pinned?' p':'');p.textContent=f.pinned?'📌 Disematkan':'Sematkan';
+    p.onclick=()=>{if(!busy)togglePin(i)};
+    a.append(p,e,x);box.append(d);
   });
   $('zip').disabled=$('copy').disabled=!list.length;
   $('zipNote').textContent=list.length?'':'Simpan minimal satu frame ke daftar dulu.';
@@ -438,6 +441,7 @@ $('save').onclick=()=>{
   if(ed.fresh||!src)src=uniqueFile(slug(name),ed.idx);
   const entry={name,src,w:ed.w,h:ed.h,slots:ed.slots.map(s=>({x:s.x,y:s.y,w:s.w,h:s.h}))};
   if(ed.effect&&ed.effect!=='none')entry.effect=ed.effect;
+  if(ed.idx>=0&&list[ed.idx]&&list[ed.idx].pinned)entry.pinned=true;
   if(blob)entry.blob=blob;
   if(ed.idx>=0){const old=list[ed.idx];if(old.blob&&blob===old.blob)entry.url=old.url;list[ed.idx]=entry}else list.push(entry);
   dirty=true;reset();renderList();
@@ -445,7 +449,7 @@ $('save').onclick=()=>{
 $('cancel').onclick=reset;
 
 /* ---------- Ekspor ---------- */
-function jsonOut(){return JSON.stringify(list.map(({name,src,w,h,slots,effect})=>effect&&effect!=='none'?{name,src,w,h,slots,effect}:{name,src,w,h,slots}),null,2)}
+function jsonOut(){return JSON.stringify(list.map(({name,src,w,h,slots,effect,pinned})=>{const o={name,src,w,h,slots};if(effect&&effect!=='none')o.effect=effect;if(pinned===true)o.pinned=true;return o}),null,2)}
 $('zip').onclick=async()=>{
   const b=$('zip');b.disabled=true;b.textContent='Menyiapkan...';
   try{
@@ -574,6 +578,7 @@ async function saveRemote(name){
       made=src;
       const entry={name,src,w:snap.w,h:snap.h,slots:snap.slots};
       if(snap.effect&&snap.effect!=='none')entry.effect=snap.effect;
+      if(i>=0&&remote[i].pinned===true)entry.pinned=true;
       const nx=remote.slice();
       if(i>=0)nx[i]=entry;else nx.push(entry);
       return{next:nx,png};
@@ -584,6 +589,27 @@ async function saveRemote(name){
     note('✅ Tersimpan ke GitHub.'+DELAY);
   }catch(e){
     note('❌ Gagal menyimpan: '+e.message);
+  }
+  setBusy(false);
+}
+async function togglePin(i){
+  const f=list[i];if(!f||busy)return;
+  const on=!f.pinned;
+  // hanya 1 frame yang boleh disematkan: sematan lain selalu dilepas
+  const apply=arr=>arr.map(x=>{const y=Object.assign({},x);delete y.pinned;if(on&&x.src===f.src)y.pinned=true;return y});
+  if(!connected()){list=apply(list);dirty=true;renderList();return}
+  setBusy(true);
+  try{
+    const next=await publish(remote=>{
+      if(!remote.some(x=>x.src===f.src))throw new Error('Frame ini sudah tidak ada di GitHub. Muat ulang halaman.');
+      return{next:apply(remote)};
+    },(on?'Sematkan':'Lepas sematan')+' frame: '+f.name,note);
+    const old=list;
+    list=next.map(x=>{const o=old.find(l=>l.src===x.src);return o&&o.url?Object.assign({},x,{url:o.url}):x});
+    renderList();
+    note('✅ '+(on?'Frame disematkan.':'Sematan dilepas.')+DELAY);
+  }catch(e){
+    note('❌ Gagal mengubah sematan: '+e.message);
   }
   setBusy(false);
 }
