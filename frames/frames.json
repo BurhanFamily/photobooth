@@ -1,31 +1,5 @@
 [
   {
-    "name": "Joane Mieko 1",
-    "src": "frames/joane-mieko-1.png",
-    "w": 1088,
-    "h": 3264,
-    "slots": [
-      {
-        "x": 181,
-        "y": 498,
-        "w": 723,
-        "h": 495
-      },
-      {
-        "x": 185,
-        "y": 1260,
-        "w": 721,
-        "h": 492
-      },
-      {
-        "x": 200,
-        "y": 2020,
-        "w": 715,
-        "h": 498
-      }
-    ]
-  },
-  {
     "name": "Joane Mieko 2",
     "src": "frames/joane-mieko-2.png",
     "w": 426,
