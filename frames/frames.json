@@ -50,5 +50,25 @@
         "h": 303
       }
     ]
+  },
+  {
+    "name": "Coastal Memories",
+    "src": "frames/coastal-memories.png",
+    "w": 940,
+    "h": 2821,
+    "slots": [
+      {
+        "x": 126,
+        "y": 283,
+        "w": 684,
+        "h": 863
+      },
+      {
+        "x": 66,
+        "y": 1286,
+        "w": 761,
+        "h": 920
+      }
+    ]
   }
 ]
