@@ -25,16 +25,6 @@ h1{font-size:clamp(2.2rem,9vw,4.2rem);line-height:1.1;margin-bottom:14px}
 .fc:hover,.fc:focus-visible{transform:rotate(0) scale(1.04);outline:none}
 .fc canvas{width:100%;height:auto;max-height:280px;object-fit:contain;display:block;margin-bottom:8px}
 .fc b{display:block}
-.cam{position:relative;max-width:640px;margin:0 auto;aspect-ratio:4/3;background:#000;border-radius:18px;overflow:hidden;border:4px solid var(--ink);box-shadow:8px 8px 0 var(--sh)}
-.cam video,.cam img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-#v{transform:scaleX(-1)}
-#v.rear{transform:none}
-.flip{position:absolute;top:12px;right:12px;z-index:2;height:40px;padding:0 14px;border-radius:99px;border:3px solid var(--ink);background:var(--bg);color:var(--ink);font-family:inherit;font-weight:800;font-size:14px;line-height:1;box-shadow:3px 3px 0 var(--sh);cursor:pointer}
-.flip:disabled{opacity:.4;cursor:default}
-.flip:focus-visible{outline:3px solid var(--red);outline-offset:2px}
-#cd{position:absolute;inset:0;display:grid;place-items:center;font:800 min(40vw,220px)/1 'Bricolage Grotesque',sans-serif;color:#fff;text-shadow:0 4px 0 var(--red),0 0 30px #000a;pointer-events:none}
-#fl{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
-#rec{position:absolute;top:12px;left:12px;background:var(--red);color:#fff;padding:2px 12px;border-radius:99px;font-size:13px;font-weight:800;display:none}
 .bar{display:flex;gap:12px;justify-content:center;align-items:center;flex-wrap:wrap;margin:28px 0}
 .shutter{width:84px;height:84px;border-radius:50%;background:var(--red);border:4px solid var(--ink);box-shadow:0 0 0 6px var(--bg),0 0 0 9px var(--ink);cursor:pointer;transition:transform .1s}
 .shutter:active{transform:scale(.92)}.shutter:disabled{opacity:.35;cursor:default}
@@ -61,9 +51,31 @@ h1{font-size:clamp(2.2rem,9vw,4.2rem);line-height:1.1;margin-bottom:14px}
 .allh{font-size:1.1rem;margin:0 0 14px}
 .adj{max-width:640px;margin:0 auto}
 .adj p{text-align:center;margin:0 0 12px}
-#adjc{display:block;margin:0 auto;width:auto;height:auto;max-width:min(100%,460px);max-height:60vh;border:4px solid var(--ink);border-radius:14px;box-shadow:8px 8px 0 var(--sh);background:#000;touch-action:none;cursor:grab}
 .zl{display:flex;gap:12px;align-items:center;justify-content:center;margin:18px 0 0;font-weight:800}
 .zl input{width:min(60vw,320px);accent-color:var(--red)}
+/* ===== Live preview di dalam frame ===== */
+.stage{position:relative;margin:0 auto;box-shadow:0 8px 24px #0004}
+#bk,#fr{position:absolute;inset:0;width:100%;height:100%;display:block}
+#bk{z-index:0}
+#fr{z-index:3;pointer-events:none}
+.sl{position:absolute;z-index:1;overflow:hidden;background:#d9d9d9}
+.sl img{width:100%;height:100%;object-fit:cover;display:block}
+.live{position:absolute;z-index:2;display:block;background:#000;object-fit:cover}
+#v{transform:scaleX(-1)}
+#v.rear{transform:none}
+#adjc{touch-action:none;cursor:grab}
+#ov{position:absolute;z-index:4;pointer-events:none;overflow:hidden}
+#cd{position:absolute;inset:0;display:grid;place-items:center;font:800 60px/1 'Bricolage Grotesque',sans-serif;color:#fff;text-shadow:0 3px 0 var(--red),0 0 24px #000a}
+#fl{position:absolute;inset:0;background:#fff;opacity:0}
+#rec{position:absolute;top:6px;left:6px;background:var(--red);color:#fff;padding:1px 9px;border-radius:99px;font-size:12px;font-weight:800;display:none}
+#lt{position:fixed;inset:0;background:#fff;z-index:20;opacity:0;pointer-events:none;transition:opacity .2s}
+#lt.on{opacity:1}
+.stage.lit{z-index:30}
+.cbar{position:sticky;bottom:0;z-index:6;display:flex;flex-direction:column;align-items:center;gap:14px;padding:18px 8px calc(12px + env(safe-area-inset-bottom));margin-top:6px;background:linear-gradient(to bottom,transparent,var(--bg) 24px)}
+.cbar .row{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap}
+.cbar .shutter{margin:9px}
+.b.sm{padding:9px 14px;font-size:14px;border-width:2px;box-shadow:3px 3px 0 var(--sh)}
+.rv-hide{display:none!important}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -88,30 +100,40 @@ h1{font-size:clamp(2.2rem,9vw,4.2rem);line-height:1.1;margin-bottom:14px}
 
 <section id="s2" class="screen">
   <button class="ico" id="back" aria-label="Kembali pilih frame" style="left:12px">←</button>
-  <h2 id="ttl" style="text-align:center;margin-top:40px"></h2>
-  <p class="dots" id="dots"></p>
-  <div class="cam">
-    <video id="v" autoplay playsinline muted></video>
-    <img id="rv" hidden alt="Hasil foto">
-    <div id="cd"></div><div id="fl"></div><span id="rec">● REC</span>
-    <button class="flip" id="flip" hidden>🔄 Kamera depan</button>
+  <h2 id="ttl" style="text-align:center;margin-top:36px;margin-bottom:4px"></h2>
+  <p class="dots" id="dots" style="margin-bottom:10px"></p>
+  <div id="stwrap">
+    <div class="stage" id="stage">
+      <canvas id="bk"></canvas>
+      <video id="v" class="live" autoplay playsinline muted></video>
+      <img id="rv" class="live" hidden alt="Hasil foto">
+      <canvas id="adjc" class="live" hidden aria-label="Atur posisi dan zoom foto di dalam frame"></canvas>
+      <canvas id="fr"></canvas>
+      <div id="ov"><div id="cd"></div><div id="fl"></div><span id="rec">● REC</span></div>
+    </div>
   </div>
-  <div class="bar" id="bar">
-    <button class="shutter" id="go" aria-label="Ambil foto"></button>
-    <button class="b" id="gal" aria-label="Pilih foto dari galeri">🖼️ Galeri</button>
-    <button class="b p" id="ok" hidden>Gunakan foto ini</button>
-    <button class="b" id="retake" hidden>Ambil ulang foto</button>
+  <div class="cbar" id="bar">
+    <div class="row">
+      <button class="shutter" id="go" aria-label="Ambil foto"></button>
+      <button class="b p" id="ok" hidden>Gunakan Foto Ini</button>
+      <button class="b" id="retake" hidden>Ambil Ulang</button>
+    </div>
+    <div class="row">
+      <button class="b sm" id="flip" hidden>🔄 Kamera depan</button>
+      <button class="b sm" id="flash" aria-pressed="false">💡 Flash: mati</button>
+      <button class="b sm" id="gal" aria-label="Pilih foto dari galeri">🖼️ Galeri</button>
+    </div>
   </div>
   <input type="file" id="gf" accept="image/*" hidden>
-  <div class="adj" id="adj" hidden>
-    <p>Geser foto untuk mengatur posisi. Cubit, scroll, atau pakai slider untuk zoom.</p>
-    <canvas id="adjc" aria-label="Atur posisi dan zoom foto"></canvas>
-    <label class="zl">Zoom <input type="range" id="zoom" min="1" max="4" step="0.01" value="1"></label>
-    <div class="bar">
+  <div class="adj cbar" id="adj" hidden>
+    <p style="margin:0">Geser foto langsung di dalam frame. Cubit, scroll, atau pakai slider untuk zoom.</p>
+    <label class="zl" style="margin:0">Zoom <input type="range" id="zoom" min="1" max="4" step="0.01" value="1"></label>
+    <div class="row">
       <button class="b p" id="adjok">Pakai foto ini</button>
       <button class="b" id="adjno">Batal</button>
     </div>
   </div>
+  <div id="lt"></div>
 </section>
 
 <section id="s3" class="screen">
@@ -155,7 +177,7 @@ function strip(name,n,c){
 function prep(f){
   if(!f.src)return;
   const im=new Image();
-  im.onload=()=>{f.th&&draw(f.th.getContext('2d'),f,[]);f.th2&&draw(f.th2.getContext('2d'),f,[])};
+  im.onload=()=>{f.th&&draw(f.th.getContext('2d'),f,[]);f.th2&&draw(f.th2.getContext('2d'),f,[]);f.redraw&&f.redraw()};
   im.src=f.src;
   f.back=()=>{};
   f.front=x=>im.complete&&x.drawImage(im,0,0,f.w,f.h);
@@ -261,8 +283,11 @@ function show(id){document.querySelectorAll('.screen').forEach(e=>e.classList.to
 function mode(m){
   $('go').hidden=m==='review';$('go').disabled=m==='busy';
   $('ok').hidden=$('retake').hidden=m!=='review';
-  $('rv').hidden=m!=='review';$('back').disabled=m==='busy';
+  $('rv').hidden=m!=='review';$('v').hidden=m==='review';
+  $('back').disabled=m==='busy';
   $('flip').disabled=m!=='idle';
+  $('flip').classList.toggle('rv-hide',m==='review');
+  $('flash').classList.toggle('rv-hide',m==='review');$('flash').disabled=m!=='idle';
   $('gal').hidden=m==='review';$('gal').disabled=m==='busy';
 }
 function ui(){
@@ -270,7 +295,73 @@ function ui(){
   $('dots').textContent=`Foto ${shots.length+1} dari ${F.slots.length}`;
   adjMode(false);
   mode('idle');
+  paint();
 }
+
+/* ---- Stage: frame utuh + preview kamera di dalam slot aktif ---- */
+function setRect(el,s){
+  el.style.left=s.x/F.w*100+'%';el.style.top=s.y/F.h*100+'%';
+  el.style.width=s.w/F.w*100+'%';el.style.height=s.h/F.h*100+'%';
+}
+function drawStage(){
+  const b=$('bk'),f=$('fr');b.width=f.width=F.w;b.height=f.height=F.h;
+  F.back(b.getContext('2d'));F.front(f.getContext('2d')); // sama dengan draw() hasil akhir
+}
+function buildStage(){
+  const st=$('stage');
+  st.querySelectorAll('.sl').forEach(e=>e.remove());
+  F.slots.forEach(s=>{const d=document.createElement('div');d.className='sl';setRect(d,s);st.append(d)});
+  FRAMES.forEach(x=>{if(x!==F)x.redraw=null});
+  F.redraw=drawStage;drawStage();
+  const E=effOf(F),fx=E?cssOf(E):'none'; // efek frame langsung di preview
+  ['v','rv','adjc'].forEach(id=>$(id).style.filter=fx);
+}
+function fit(){
+  if(!F)return;
+  const cw=$('stwrap').clientWidth;if(!cw)return;
+  const r=F.w/F.h,mobile=innerWidth<700;
+  // desktop: frame utuh muat di layar; HP: selebar layar, halaman boleh di-scroll
+  const maxH=mobile?Math.max(innerHeight*1.15,520):Math.max(innerHeight-300,380);
+  const w=Math.min(cw,maxH*r),st=$('stage');
+  st.style.width=w+'px';st.style.height=w/r+'px';
+  fitText();
+}
+function fitText(){
+  const s=F&&F.slots[shots.length];if(!s)return;
+  const k=$('stage').clientWidth/F.w;
+  $('cd').style.fontSize=Math.max(24,Math.min(s.w,s.h)*k*.7)+'px';
+}
+function paint(){
+  const E=effOf(F),fx=E?cssOf(E):'none';
+  $('stage').querySelectorAll('.sl').forEach((d,i)=>{
+    const s=shots[i];
+    if(!s){d.textContent='';delete d.dataset.u}
+    else if(d.dataset.u!==s.url){
+      d.textContent='';const im=new Image();im.alt='Foto '+(i+1);im.src=s.url;im.style.filter=fx;
+      d.append(im);d.dataset.u=s.url;
+    }
+  });
+  placeActive();
+}
+function placeActive(){
+  const s=F.slots[shots.length];if(!s)return;
+  ['v','rv','adjc','ov'].forEach(id=>setRect($(id),s));
+  fitText();
+  if($('stage').clientHeight>innerHeight*.85){
+    if(!shots.length)scrollTo({top:0,behavior:'smooth'});
+    else $('ov').scrollIntoView({block:'center',behavior:'smooth'});
+  }
+}
+function resetShots(){shots.forEach(s=>s.url&&URL.revokeObjectURL(s.url));shots=[]}
+function light(on){$('lt').classList.toggle('on',on);$('stage').classList.toggle('lit',on)}
+let flashOn=false;
+$('flash').onclick=()=>{
+  flashOn=!flashOn;
+  $('flash').setAttribute('aria-pressed',flashOn);
+  $('flash').textContent=flashOn?'💡 Flash: nyala':'💡 Flash: mati';
+  $('flash').classList.toggle('p',flashOn);
+};
+addEventListener('resize',fit);addEventListener('orientationchange',()=>setTimeout(fit,200));
 
 function addCard(f){
   const b=document.createElement('button');b.className='fc';
@@ -284,7 +375,7 @@ function addCard(f){
 FRAMES.forEach(addCard);
 
 async function pick(f){
-  F=f;shots=[];
+  F=f;resetShots();
   try{
     stream=stream||await getStream(facing);
   }catch(e){
@@ -292,7 +383,8 @@ async function pick(f){
     return;
   }
   $('v').srcObject=stream;
-  show('s2');ui();syncCam();
+  show('s2');scrollTo(0,0);buildStage();fit();ui();syncCam();
+  const p=$('v').play();if(p&&p.catch)p.catch(()=>{});
 }
 function stopCam(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
 
@@ -304,6 +396,7 @@ function syncCam(){
   const f=$('flip');
   $('v').classList.toggle('rear',facing==='environment');
   f.textContent=facing==='user'?'🔄 Kamera depan':'🔄 Kamera belakang';
+  $('flash').hidden=facing!=='user'; // flash layar hanya berguna untuk kamera depan
   f.setAttribute('aria-label','Ganti kamera. Sekarang: '+(facing==='user'?'depan':'belakang'));
   // tombol hanya tampil jika perangkat punya lebih dari satu kamera
   if(navigator.mediaDevices&&navigator.mediaDevices.enumerateDevices)
@@ -339,28 +432,28 @@ function record(){
 
 $('go').onclick=async()=>{
   mode('busy');
-  const stop=record();
+  const stop=record(),lit=flashOn&&facing==='user';
   $('rec').style.display='block';
-  for(let n=5;n>0;n--){$('cd').textContent=n;await sleep(1000)}
+  for(let n=5;n>0;n--){$('cd').textContent=n;if(n===1&&lit)light(true);await sleep(1000)}
   $('cd').textContent='';
   const v=$('v'),cv=document.createElement('canvas');
   cv.width=v.videoWidth;cv.height=v.videoHeight;
   const x=cv.getContext('2d');if(mir()){x.translate(cv.width,0);x.scale(-1,1)}x.drawImage(v,0,0);
+  light(false);
   $('fl').animate([{opacity:.9},{opacity:0}],300);
   const vid=await stop();
   $('rec').style.display='none';
   const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.92));
-  cur={cv,blob,vid};
-  $('rv').src=URL.createObjectURL(blob);
+  cur={cv,blob,vid,url:URL.createObjectURL(blob)};
+  $('rv').src=cur.url;
   mode('review');
 };
-$('retake').onclick=()=>{URL.revokeObjectURL($('rv').src);mode('idle')};
+$('retake').onclick=()=>{URL.revokeObjectURL(cur.url);cur=null;mode('idle')};
 $('ok').onclick=()=>{
-  URL.revokeObjectURL($('rv').src);
   shots.push(cur);
   if(shots.length<F.slots.length)ui();else finish();
 };
-$('back').onclick=()=>{stopCam();show('s1')};
+$('back').onclick=()=>{stopCam();resetShots();show('s1')};
 $('again').onclick=()=>show('s1');
 
 /* ============ FOTO DARI GALERI ============
@@ -368,8 +461,8 @@ $('again').onclick=()=>show('s1');
    Hasilnya dimasukkan ke shots seperti foto kamera, tanpa klip video (tampil diam di video). */
 let A=null;
 function adjMode(on){
-  document.querySelector('.cam').hidden=on;$('bar').hidden=on;$('adj').hidden=!on;
-  if(!on)A=null;
+  $('adjc').hidden=!on;$('bar').hidden=on;$('adj').hidden=!on;
+  if(on)$('v').hidden=true;else A=null;
 }
 function adjDraw(){
   const x=$('adjc').getContext('2d'),k=A.k0*A.z;
@@ -429,14 +522,14 @@ $('zoom').oninput=()=>{if(A)adjZoom(+$('zoom').value,A.ow/2,A.oh/2)};
     adjZoom(A.z*(e.deltaY<0?1.1:1/1.1),(e.clientX-r.left)*sc,(e.clientY-r.top)*sc);
   },{passive:false});
 }
-$('adjno').onclick=()=>adjMode(false);
+$('adjno').onclick=()=>ui();
 $('adjok').onclick=async()=>{
   if(!A)return;
   $('adjok').disabled=true;
   const cv=document.createElement('canvas');cv.width=A.ow;cv.height=A.oh;
   const k=A.k0*A.z;cv.getContext('2d').drawImage(A.g,A.ox,A.oy,A.g.width*k,A.g.height*k);
   const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.92));
-  shots.push({cv,blob,vid:null});
+  shots.push({cv,blob,vid:null,url:URL.createObjectURL(blob)});
   if(shots.length<F.slots.length)ui();else finish();
 };
 
@@ -514,6 +607,7 @@ async function finish(){
   stopCam();
   const c=document.createElement('canvas');c.width=F.w;c.height=F.h;
   draw(c.getContext('2d'),F,shots.map(s=>({src:s.cv})));
+  shots.forEach(s=>{if(s.url){URL.revokeObjectURL(s.url);s.url=null}});
   const fb=await new Promise(r=>c.toBlob(r,'image/png'));
   files=[{n:'foto-berframe.png',b:fb,t:'Foto dalam frame',g:'a'}];
   try{files.push({n:'postingan-sosial-media.jpg',b:await social(c),t:'Postingan sosial media',g:'d'})}catch(e){}
