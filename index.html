@@ -90,6 +90,7 @@ h1{font-size:clamp(2.2rem,9vw,4.2rem);line-height:1.1;margin-bottom:14px}
     <div class="pinrow" id="pinned"></div>
   </section>
   <h2 class="allh" id="allh" hidden>Semua frame</h2>
+  <p id="fnote" hidden style="margin:0 0 14px;padding:10px 14px;border:3px dashed var(--red);border-radius:12px;font-weight:800;font-size:14px"></p>
   <div class="frames" id="frames"></div>
   <section class="about">
     <h2>Tentang Photobooth Online</h2>
@@ -178,6 +179,7 @@ function prep(f){
   if(!f.src)return;
   const im=new Image();
   im.onload=()=>{f.th&&draw(f.th.getContext('2d'),f,[]);f.th2&&draw(f.th2.getContext('2d'),f,[]);f.redraw&&f.redraw()};
+  im.onerror=()=>warn('gambar '+f.src+' tidak bisa dimuat (file tidak ada / nama tidak cocok)');
   im.src=f.src;
   f.back=()=>{};
   f.front=x=>im.complete&&x.drawImage(im,0,0,f.w,f.h);
@@ -639,19 +641,28 @@ function showPin(f){
   b.onclick=()=>pick(f);
   $('pinned').append(b);$('pin').hidden=false;$('allh').hidden=false;
 }
-fetch('frames/frames.json',{cache:'no-cache'})
-  .then(r=>r.ok?r.json():[])
+const skipped=[];
+function warn(msg){
+  console.warn('[frames] '+msg);skipped.push(msg);
+  const n=$('fnote');n.hidden=false;n.textContent='⚠️ '+skipped.join(' | ');
+}
+fetch('frames/frames.json?'+Date.now(),{cache:'no-store'})
+  .then(r=>{if(!r.ok)throw new Error('frames/frames.json gagal dimuat (HTTP '+r.status+')');return r.json()})
   .then(list=>{
-    if(!Array.isArray(list))return;
+    if(!Array.isArray(list))throw new Error('frames.json formatnya salah (harus berupa daftar)');
     let pinned=null;
-    list.forEach(f=>{
-      if(!f||!f.src||!f.name||!f.w||!f.h||!Array.isArray(f.slots)||!f.slots.length)return;
-      prep(f);FRAMES.push(f);addCard(f);
-      if(f.pinned===true&&!pinned)pinned=f;
+    list.forEach((f,i)=>{
+      try{ // satu frame bermasalah tidak boleh menghentikan frame lain
+        if(!f||!f.src||!f.name||!f.w||!f.h||!Array.isArray(f.slots)||!f.slots.length){
+          warn('frame ke-'+(i+1)+' ('+((f&&f.name)||'tanpa nama')+') dilewati: data tidak lengkap');return;
+        }
+        prep(f);FRAMES.push(f);addCard(f);
+        if(f.pinned===true&&!pinned)pinned=f;
+      }catch(e){warn('frame "'+((f&&f.name)||i+1)+'" gagal diproses: '+e.message)}
     });
-    if(pinned)showPin(pinned);
+    if(pinned){try{showPin(pinned)}catch(e){warn('frame spesial gagal ditampilkan: '+e.message)}}
   })
-  .catch(()=>{});
+  .catch(e=>warn(e.message));
 </script>
 </body>
 </html>
