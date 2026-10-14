@@ -59,6 +59,11 @@ h1{font-size:clamp(2.2rem,9vw,4.2rem);line-height:1.1;margin-bottom:14px}
 .pinrow .fc{width:100%;max-width:240px;position:relative}
 .rib{position:absolute;top:-12px;left:-8px;background:var(--red);color:#fff;font-size:12px;font-weight:800;padding:1px 10px;border-radius:99px;border:2px solid var(--ink)}
 .allh{font-size:1.1rem;margin:0 0 14px}
+.adj{max-width:640px;margin:0 auto}
+.adj p{text-align:center;margin:0 0 12px}
+#adjc{display:block;margin:0 auto;width:auto;height:auto;max-width:min(100%,460px);max-height:60vh;border:4px solid var(--ink);border-radius:14px;box-shadow:8px 8px 0 var(--sh);background:#000;touch-action:none;cursor:grab}
+.zl{display:flex;gap:12px;align-items:center;justify-content:center;margin:18px 0 0;font-weight:800}
+.zl input{width:min(60vw,320px);accent-color:var(--red)}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -77,7 +82,8 @@ h1{font-size:clamp(2.2rem,9vw,4.2rem);line-height:1.1;margin-bottom:14px}
   <section class="about">
     <h2>Tentang Photobooth Online</h2>
     <p>Photobooth berbasis web buatan <b>Burhan Family</b>. Pilih frame, atur gaya terbaikmu, lalu cekrek. Tanpa install aplikasi dan tanpa akun.</p>
-    </section>
+    <p>Hasilnya bisa diunduh sebagai foto berframe, foto polos, dan video dalam satu frame, satu per satu atau semuanya sekaligus dalam bentuk ZIP. Fotomu diproses di browser dan tidak diunggah ke server.</p>
+  </section>
   <p class="credit">Dibuat dengan ❤️ oleh Burhan Family</p>
 </section>
 
@@ -91,10 +97,21 @@ h1{font-size:clamp(2.2rem,9vw,4.2rem);line-height:1.1;margin-bottom:14px}
     <div id="cd"></div><div id="fl"></div><span id="rec">● REC</span>
     <button class="flip" id="flip" hidden>🔄 Kamera depan</button>
   </div>
-  <div class="bar">
+  <div class="bar" id="bar">
     <button class="shutter" id="go" aria-label="Ambil foto"></button>
+    <button class="b" id="gal" aria-label="Pilih foto dari galeri">🖼️ Galeri</button>
     <button class="b p" id="ok" hidden>Gunakan foto ini</button>
     <button class="b" id="retake" hidden>Ambil ulang foto</button>
+  </div>
+  <input type="file" id="gf" accept="image/*" hidden>
+  <div class="adj" id="adj" hidden>
+    <p>Geser foto untuk mengatur posisi. Cubit, scroll, atau pakai slider untuk zoom.</p>
+    <canvas id="adjc" aria-label="Atur posisi dan zoom foto"></canvas>
+    <label class="zl">Zoom <input type="range" id="zoom" min="1" max="4" step="0.01" value="1"></label>
+    <div class="bar">
+      <button class="b p" id="adjok">Pakai foto ini</button>
+      <button class="b" id="adjno">Batal</button>
+    </div>
   </div>
 </section>
 
@@ -247,10 +264,12 @@ function mode(m){
   $('ok').hidden=$('retake').hidden=m!=='review';
   $('rv').hidden=m!=='review';$('back').disabled=m==='busy';
   $('flip').disabled=m!=='idle';
+  $('gal').hidden=m==='review';$('gal').disabled=m==='busy';
 }
 function ui(){
   $('ttl').textContent='Frame '+F.name;
   $('dots').textContent=`Foto ${shots.length+1} dari ${F.slots.length}`;
+  adjMode(false);
   mode('idle');
 }
 
@@ -345,21 +364,100 @@ $('ok').onclick=()=>{
 $('back').onclick=()=>{stopCam();show('s1')};
 $('again').onclick=()=>show('s1');
 
+/* ============ FOTO DARI GALERI ============
+   Foto dipilih, lalu digeser/di-zoom sesuai rasio slot frame yang sedang diisi.
+   Hasilnya dimasukkan ke shots seperti foto kamera, tanpa klip video (tampil diam di video). */
+let A=null;
+function adjMode(on){
+  document.querySelector('.cam').hidden=on;$('bar').hidden=on;$('adj').hidden=!on;
+  if(!on)A=null;
+}
+function adjDraw(){
+  const x=$('adjc').getContext('2d'),k=A.k0*A.z;
+  x.fillStyle='#000';x.fillRect(0,0,A.ow,A.oh);
+  x.drawImage(A.g,A.ox,A.oy,A.g.width*k,A.g.height*k);
+}
+function adjClamp(){
+  const k=A.k0*A.z;
+  A.ox=Math.min(0,Math.max(A.ow-A.g.width*k,A.ox));
+  A.oy=Math.min(0,Math.max(A.oh-A.g.height*k,A.oy));
+}
+function adjZoom(nz,fx,fy){ // zoom mengitari titik (fx,fy) dalam piksel kanvas
+  nz=Math.min(4,Math.max(1,nz));
+  const k=A.k0*A.z,ix=(fx-A.ox)/k,iy=(fy-A.oy)/k;
+  A.z=nz;const k2=A.k0*nz;A.ox=fx-ix*k2;A.oy=fy-iy*k2;
+  adjClamp();$('zoom').value=nz;adjDraw();
+}
+async function openGallery(file){
+  let bmp;
+  try{bmp=await createImageBitmap(file,{imageOrientation:'from-image'})}
+  catch(e){
+    try{bmp=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=URL.createObjectURL(file)})}
+    catch(e2){alert('File ini tidak bisa dibuka sebagai foto. Pilih file gambar (JPG atau PNG).');return}
+  }
+  const bw=bmp.width||bmp.naturalWidth,bh=bmp.height||bmp.naturalHeight,sc=Math.min(1,1600/Math.max(bw,bh));
+  const g=document.createElement('canvas');g.width=Math.max(1,Math.round(bw*sc));g.height=Math.max(1,Math.round(bh*sc));
+  g.getContext('2d').drawImage(bmp,0,0,g.width,g.height);
+  if(bmp.close)bmp.close();
+  const s=F.slots[shots.length],ow=Math.round(Math.min(1200,s.w*2)),oh=Math.round(ow*s.h/s.w);
+  const k0=Math.max(ow/g.width,oh/g.height);
+  A={g,ow,oh,k0,z:1,ox:(ow-g.width*k0)/2,oy:(oh-g.height*k0)/2};
+  const c=$('adjc');c.width=ow;c.height=oh;
+  adjMode(true);A.g=g;$('zoom').value=1;$('adjok').disabled=false;adjDraw();
+}
+$('gal').onclick=()=>$('gf').click();
+$('gf').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)openGallery(f)};
+$('zoom').oninput=()=>{if(A)adjZoom(+$('zoom').value,A.ow/2,A.oh/2)};
+{
+  const c=$('adjc'),ptrs=new Map();let pd=0;
+  const pinch=()=>{if(ptrs.size!==2)return 0;const [a,b]=[...ptrs.values()];return Math.hypot(a.x-b.x,a.y-b.y)};
+  c.onpointerdown=e=>{if(!A)return;c.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});pd=pinch();e.preventDefault()};
+  c.onpointermove=e=>{
+    if(!A||!ptrs.has(e.pointerId))return;
+    const p=ptrs.get(e.pointerId),r=c.getBoundingClientRect(),sc=A.ow/r.width;
+    ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(ptrs.size===1){A.ox+=(e.clientX-p.x)*sc;A.oy+=(e.clientY-p.y)*sc;adjClamp();adjDraw()}
+    else if(ptrs.size===2){
+      const d=pinch(),[a,b]=[...ptrs.values()];
+      if(pd&&d)adjZoom(A.z*d/pd,((a.x+b.x)/2-r.left)*sc,((a.y+b.y)/2-r.top)*sc);
+      pd=d;
+    }
+  };
+  c.onpointerup=c.onpointercancel=e=>{ptrs.delete(e.pointerId);pd=pinch()};
+  c.addEventListener('wheel',e=>{
+    if(!A)return;e.preventDefault();
+    const r=c.getBoundingClientRect(),sc=A.ow/r.width;
+    adjZoom(A.z*(e.deltaY<0?1.1:1/1.1),(e.clientX-r.left)*sc,(e.clientY-r.top)*sc);
+  },{passive:false});
+}
+$('adjno').onclick=()=>adjMode(false);
+$('adjok').onclick=async()=>{
+  if(!A)return;
+  $('adjok').disabled=true;
+  const cv=document.createElement('canvas');cv.width=A.ow;cv.height=A.oh;
+  const k=A.k0*A.z;cv.getContext('2d').drawImage(A.g,A.ox,A.oy,A.g.width*k,A.g.height*k);
+  const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.92));
+  shots.push({cv,blob,vid:null});
+  if(shots.length<F.slots.length)ui();else finish();
+};
+
 // Gabungkan semua klip: diputar bersamaan di dalam satu frame
 async function combine(){
   const c=document.createElement('canvas');c.width=F.w;c.height=F.h;
   const x=c.getContext('2d');
-  const vs=shots.map(s=>{const v=document.createElement('video');v.muted=true;v.playsInline=true;v.src=URL.createObjectURL(s.vid);return v});
-  await Promise.all(vs.map(v=>new Promise(r=>{v.onloadeddata=r;v.load()})));
-  const items=vs.map(v=>({src:v}));
+  // foto dari galeri tidak punya klip: tampil diam di dalam video
+  const vs=shots.map(s=>{if(!s.vid)return null;const v=document.createElement('video');v.muted=true;v.playsInline=true;v.src=URL.createObjectURL(s.vid);return v});
+  const vr=vs.filter(Boolean);
+  await Promise.all(vr.map(v=>new Promise(r=>{v.onloadeddata=r;v.load()})));
+  const items=shots.map((s,i)=>({src:vs[i]||s.cv}));
   let on=true;
   (function loop(){if(!on)return;draw(x,F,items);requestAnimationFrame(loop)})();
   const ch=[],mr=new MediaRecorder(c.captureStream(30),MROPT);
   mr.ondataavailable=e=>e.data.size&&ch.push(e.data);
-  const done=Promise.all(vs.map(v=>new Promise(r=>v.onended=r)));
+  const done=Promise.all(vr.map(v=>new Promise(r=>v.onended=r)));
   mr.start();
-  await Promise.all(vs.map(v=>v.play()));
-  await Promise.race([done,sleep(15000)]);
+  await Promise.all(vr.map(v=>v.play()));
+  await (vr.length?Promise.race([done,sleep(15000)]):sleep(3000));
   await sleep(300);
   return new Promise(r=>{mr.onstop=()=>{on=false;r(new Blob(ch,{type:BT}))};mr.stop()});
 }
