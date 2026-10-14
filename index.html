@@ -77,7 +77,8 @@ h1{font-size:clamp(2.2rem,9vw,4.2rem);line-height:1.1;margin-bottom:14px}
   <section class="about">
     <h2>Tentang Photobooth Online</h2>
     <p>Photobooth berbasis web buatan <b>Burhan Family</b>. Pilih frame, atur gaya terbaikmu, lalu cekrek. Tanpa install aplikasi dan tanpa akun.</p>
-    </section>
+    <p>Hasilnya bisa diunduh sebagai foto berframe, foto polos, dan video dalam satu frame, satu per satu atau semuanya sekaligus dalam bentuk ZIP. Fotomu diproses di browser dan tidak diunggah ke server.</p>
+  </section>
   <p class="credit">Dibuat dengan ❤️ oleh Burhan Family</p>
 </section>
 
@@ -364,14 +365,14 @@ async function combine(){
   return new Promise(r=>{mr.onstop=()=>{on=false;r(new Blob(ch,{type:BT}))};mr.stop()});
 }
 
-const G=[['a','Foto dalam frame'],['b','Foto tanpa frame'],['c','Video dalam satu frame']];
+const G=[['a','Foto dalam frame'],['d','Postingan sosial media'],['b','Foto tanpa frame'],['c','Video dalam satu frame']];
 function render(){
   $('res').innerHTML='';
   G.forEach(([g,title])=>{
     const sec=document.createElement('div'),row=document.createElement('div');
     sec.innerHTML=`<h3>${title}</h3>`;row.className='res';
     const fs=files.filter(f=>f.g===g);
-    if(!fs.length)row.innerHTML='<div class="it"><p>Menyiapkan video, tunggu sekitar 6 detik...</p></div>';
+    if(!fs.length){if(g==='d')return;row.innerHTML='<div class="it"><p>Menyiapkan video, tunggu sekitar 6 detik...</p></div>'}
     fs.forEach(f=>{
       const u=URL.createObjectURL(f.b),d=document.createElement('div');d.className='it';
       d.innerHTML=(f.b.type.startsWith('image')?`<img src="${u}" alt="${f.t}">`:`<video src="${u}" controls autoplay muted loop playsinline></video>`)+
@@ -382,12 +383,44 @@ function render(){
   });
 }
 
+// Postingan sosial media 3:4 (1080x1440): dua hasil berframe saling menumpuk + shadow,
+// di atas background hasil yang sama yang diperbesar dan di-blur
+async function social(src){
+  const W=1080,H=1440,cv=document.createElement('canvas');cv.width=W;cv.height=H;
+  const x=cv.getContext('2d');x.imageSmoothingQuality='high';
+  const m=160,bw=W+2*m,bh=H+2*m,k=Math.max(bw/src.width,bh/src.height),dw=src.width*k,dh=src.height*k;
+  if(FILTER_OK){
+    x.filter='blur(36px)';x.drawImage(src,(W-dw)/2,(H-dh)/2,dw,dh);x.filter='none';
+  }else{ // browser tanpa ctx.filter: kecilkan lalu besarkan bertahap agar tampak buram
+    let cur=document.createElement('canvas');cur.width=Math.round(bw/24);cur.height=Math.round(bh/24);
+    let cx=cur.getContext('2d');cx.imageSmoothingQuality='high';
+    const k2=Math.max(cur.width/src.width,cur.height/src.height);
+    cx.drawImage(src,(cur.width-src.width*k2)/2,(cur.height-src.height*k2)/2,src.width*k2,src.height*k2);
+    for(const div of [8,3,1]){
+      const n=document.createElement('canvas');n.width=Math.round(bw/div);n.height=Math.round(bh/div);
+      const nx=n.getContext('2d');nx.imageSmoothingQuality='high';nx.drawImage(cur,0,0,n.width,n.height);cur=n;
+    }
+    x.drawImage(cur,-m,-m,bw,bh);
+  }
+  x.fillStyle='rgba(0,0,0,.10)';x.fillRect(0,0,W,H);
+  const sc=Math.min(.82*H/src.height,.49*W/src.width),w=src.width*sc,h=src.height*sc,d=w*.82;
+  const put=(cx,cy,deg)=>{
+    x.save();x.translate(cx,cy);x.rotate(deg*Math.PI/180);
+    x.shadowColor='rgba(0,0,0,.5)';x.shadowBlur=45;x.shadowOffsetY=16;
+    x.drawImage(src,-w/2,-h/2,w,h);x.restore();
+  };
+  put(W/2-d/2,H/2-20,-4.5); // kiri (di belakang)
+  put(W/2+d/2,H/2+20,4);    // kanan (di depan)
+  return new Promise(r=>cv.toBlob(r,'image/jpeg',.92));
+}
+
 async function finish(){
   stopCam();
   const c=document.createElement('canvas');c.width=F.w;c.height=F.h;
   draw(c.getContext('2d'),F,shots.map(s=>({src:s.cv})));
   const fb=await new Promise(r=>c.toBlob(r,'image/png'));
   files=[{n:'foto-berframe.png',b:fb,t:'Foto dalam frame',g:'a'}];
+  try{files.push({n:'postingan-sosial-media.jpg',b:await social(c),t:'Postingan sosial media',g:'d'})}catch(e){}
   shots.forEach((s,i)=>files.push({n:`foto-polos-${i+1}.jpg`,b:s.blob,t:`Foto ${i+1}`,g:'b'}));
   $('zip').disabled=true;render();show('s3');
   const vb=await combine();
