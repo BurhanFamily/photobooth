@@ -239,38 +239,5 @@
         "h": 392
       }
     ]
-  },
-  {
-    "name": "Gracie - #1NAU9URASIUNIVERXIXI",
-    "src": "frames/gracie-1nau9urasiuniverxixi.png",
-    "w": 678,
-    "h": 1920,
-    "slots": [
-      {
-        "x": 24,
-        "y": 21,
-        "w": 639,
-        "h": 372
-      },
-      {
-        "x": 22,
-        "y": 412,
-        "w": 642,
-        "h": 380
-      },
-      {
-        "x": 25,
-        "y": 810,
-        "w": 635,
-        "h": 393
-      },
-      {
-        "x": 25,
-        "y": 1204,
-        "w": 636,
-        "h": 373
-      }
-    ],
-    "pinned": true
   }
 ]
