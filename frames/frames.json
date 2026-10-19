@@ -92,33 +92,6 @@
     ]
   },
   {
-    "name": "Vintage Newspaper",
-    "src": "frames/vintage-newspaper.png",
-    "w": 1281,
-    "h": 1920,
-    "slots": [
-      {
-        "x": 475,
-        "y": 632,
-        "w": 787,
-        "h": 610
-      },
-      {
-        "x": 26,
-        "y": 1310,
-        "w": 402,
-        "h": 379
-      },
-      {
-        "x": 860,
-        "y": 1307,
-        "w": 404,
-        "h": 379
-      }
-    ],
-    "effect": "bw"
-  },
-  {
     "name": "Ayo Senyumlah – Music Player",
     "src": "frames/ayo-senyumlah-music-player.png",
     "w": 1329,
