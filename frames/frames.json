@@ -304,5 +304,37 @@
       }
     ],
     "pinned": true
+  },
+  {
+    "name": "Unfolded Memoria by Theaferia",
+    "src": "frames/unfolded-memoria-by-theaferia.png",
+    "w": 640,
+    "h": 1920,
+    "slots": [
+      {
+        "x": 39,
+        "y": 55,
+        "w": 565,
+        "h": 403
+      },
+      {
+        "x": 35,
+        "y": 476,
+        "w": 566,
+        "h": 404
+      },
+      {
+        "x": 39,
+        "y": 906,
+        "w": 562,
+        "h": 403
+      },
+      {
+        "x": 40,
+        "y": 1329,
+        "w": 562,
+        "h": 398
+      }
+    ]
   }
 ]
